@@ -293,6 +293,9 @@ async function generateName(
 }
 
 export default function extension(pi: ExtensionAPI): void {
+  // A spawned subagent keeps the name that its parent gave at launch.
+  if (process.env.PI_SUBAGENT_NAME?.trim()) return;
+
   loadConfig();
   let controller: ReturnType<typeof createNamingController> | undefined;
 
