@@ -109,7 +109,7 @@ describe("extension naming integration", () => {
     ]) {
       const test = await setup(t, { complete: async () => ({ content }) });
       await test.manual();
-      assert.equal(test.name, content[0].type === "text" ? "Session naming quality" : "Database connection retry");
+      assert.equal(test.name, content[0].type === "text" ? "session-naming-quality" : "database-connection-retry");
       assert.equal(test.markers[0].source, "ai");
     }
   });
@@ -120,7 +120,7 @@ describe("extension naming integration", () => {
       complete: async () => { throw new Error("fixture failure"); },
     });
     await test.manual();
-    assert.equal(test.name, "Refactor database connection");
+    assert.equal(test.name, "refactor-database-connection");
     assert.equal(test.markers[0].source, "fallback");
   });
 

@@ -45,7 +45,9 @@ Config file is **auto-generated** on first use at `~/.pi/agent/pi-autoname.json`
   "cooldownMinutes": 10,
   "debug": false,
   "respectManualName": false,
-  "includeCustomMessages": false
+  "includeCustomMessages": false,
+  "kebabCase": true,
+  "maxWords": 5
 }
 ```
 
@@ -59,6 +61,8 @@ Config file is **auto-generated** on first use at `~/.pi/agent/pi-autoname.json`
 | `debug` | boolean | `false` | Enable debug logging |
 | `respectManualName` | boolean | `false` | When `false` (default), a `/name` change gets one cooldown window before automatic naming resumes. Set to `true` to keep a user-issued `/name` until `/autoname` is explicitly run. |
 | `includeCustomMessages` | boolean \| string[] | `false` | Include `custom_message` entries as context in the naming prompt. `false` ignores them, `true` includes all of them, and an array whitelists them by `customType`. Use this when messages injected by pi extensions carry valuable information for naming. |
+| `kebabCase` | boolean | `true` | When `true`, every generated name becomes lower-case kebab-case. Words join with one hyphen, and no other punctuation remains. A CJK label stays one word. |
+| `maxWords` | number | `5` | Upper word limit for a generated name. The value clamps to 1..8. |
 
 ### Example: Model fallback chain
 

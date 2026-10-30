@@ -9,6 +9,10 @@ export const MIN_NAME_LENGTH = 3;
 /** Max length for a session name — anything longer is likely a raw sentence */
 export const MAX_NAME_LENGTH = 30;
 
+/** Word-count bounds for a kebab-case name */
+export const MIN_NAME_WORDS = 1;
+export const MAX_NAME_WORDS = 8;
+
 /** Names matching this pattern are raw-slice fallbacks (bad) */
 export const RAW_SLICE_RE =
   /^(?:我|你|他|她|它|请|帮|能|可|可以|能不能|请帮|感觉|突然|我想|我想知道|有没有|是不是|为什么|怎么|如何|What|Can|Could|Please|Help|I want|I need|Is there|Why|How)/;
@@ -141,6 +145,13 @@ export interface AutonameConfig {
    * or a non-empty array of trimmed strings.
    */
   includeCustomMessages?: boolean | string[];
+  /**
+   * When `true` (default), every generated name becomes lower-case
+   * kebab-case: words join with one hyphen and no other punctuation remains.
+   */
+  kebabCase?: boolean;
+  /** Upper word limit for a generated name, clamped to 1..8. */
+  maxWords?: number;
 }
 
 export const DEFAULT_CONFIG: Required<AutonameConfig> = {
@@ -152,6 +163,8 @@ export const DEFAULT_CONFIG: Required<AutonameConfig> = {
   debug: false,
   respectManualName: false,
   includeCustomMessages: false,
+  kebabCase: true,
+  maxWords: 5,
 };
 
 export const THINKING_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
@@ -230,7 +243,14 @@ export function normalizeConfig(input: unknown): AutonameConfig {
     respectManualName:
       typeof raw.respectManualName === "boolean" ? raw.respectManualName : DEFAULT_CONFIG.respectManualName,
     includeCustomMessages: normalizeIncludeCustomMessages(raw.includeCustomMessages),
+    kebabCase: typeof raw.kebabCase === "boolean" ? raw.kebabCase : DEFAULT_CONFIG.kebabCase,
+    maxWords: normalizeMaxWords(raw.maxWords),
   };
+}
+
+function normalizeMaxWords(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_CONFIG.maxWords;
+  return Math.min(MAX_NAME_WORDS, Math.max(MIN_NAME_WORDS, Math.round(value)));
 }
 
 export function redactSensitiveText(text: string): { text: string; redacted: boolean } {
@@ -284,6 +304,29 @@ export function smartFallbackName(text: string): string {
   s = s.replace(/[。！？!?.…]+\s*$/, "").trim();
 
   return limitNameLength(s || text.replace(/\n/g, " ").trim());
+}
+
+/**
+ * Rewrites a label as lower-case kebab-case and keeps the first `maxWords`
+ * words. Scripts without word separators (CJK) stay one word.
+ */
+export function toKebabCase(text: string, maxWords: number = DEFAULT_CONFIG.maxWords): string {
+  const limit = Math.min(MAX_NAME_WORDS, Math.max(MIN_NAME_WORDS, Math.round(maxWords)));
+  return text
+    .replace(/(\p{Ll}|\p{N})(\p{Lu})/gu, "$1-$2")
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+    .slice(0, limit)
+    .join("-");
+}
+
+/** Cuts a kebab-case name at a hyphen boundary, never inside a word. */
+export function limitKebabName(text: string): string {
+  if (text.length <= MAX_NAME_LENGTH) return text;
+  const cut = text.slice(0, MAX_NAME_LENGTH);
+  const hyphen = cut.lastIndexOf("-");
+  return (hyphen > 0 ? cut.slice(0, hyphen) : cut).replace(/-+$/, "");
 }
 
 /** Share the quality limit across AI extraction and local fallback. */

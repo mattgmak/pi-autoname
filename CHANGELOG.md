@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `kebabCase` setting, on by default. Generated names use lower-case words joined by single hyphens. A CJK label stays one word.
+- `maxWords` setting, default 5, clamped to 1..8. It caps the words in a generated name.
 - Explicit `language` locale for AI names, with `auto` as the default and invalid locales safely returning to automatic detection. Addresses #4.
 - Optional `:minimal` / `:low` / `:medium` / `:high` / `:xhigh` / `:max` naming-model suffixes, adapted from @chuxubank’s PR #7 to the current host `streamSimple` API.
 
 ### Fixed
 
+- Skip autoname when `PI_SUBAGENT_NAME` holds a value. A spawned subagent keeps the name that its parent gives.
 - Treat not-yet-created session files as normal, while retaining safe diagnostics for other IO errors. Adapted from @LoveSnowEx’s PR #3.
 - Extract a concise line from multiline model replies and keep AI/local fallback names within the same quality limit. Adapted from @git-geeky’s PR #2.
 

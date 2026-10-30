@@ -16,12 +16,14 @@ import {
   getNamingLanguageInstruction,
   getRecentDialogue,
   isHighQualityName,
+  limitKebabName,
   limitNameLength,
   normalizeConfig,
   parseModelRef,
   parseRenameMarker,
   redactSensitiveText,
   smartFallbackName,
+  toKebabCase,
   type AutonameConfig,
   type DialoguePart,
   type RenameMarker,
@@ -166,15 +168,28 @@ function getLastRenameMarker(ctx: ExtensionContext): RenameMarker | undefined {
   return undefined;
 }
 
-function buildNamingPrompt(parts: DialoguePart[], currentName: string | undefined, fallbackLocale: string | undefined, language: string | undefined): string {
+function buildNamingPrompt(
+  parts: DialoguePart[],
+  currentName: string | undefined,
+  fallbackLocale: string | undefined,
+  language: string | undefined,
+  config: AutonameConfig,
+): string {
   const safeCurrentName = currentName ? redactSensitiveText(currentName) : undefined;
   if (safeCurrentName?.redacted) debugLog("redacted sensitive session name before AI naming");
 
+  const labelRule = config.kebabCase
+    ? `Think privately, then output only one session-name label of at most ${config.maxWords} words in lower-case kebab-case.`
+    : "Think privately, then output only one concise session-name label (5-15 characters or words).";
+  const separatorRule = config.kebabCase
+    ? "Separate the words with single hyphens. Use no other punctuation, quotes, explanation, commas, or multiple clauses."
+    : "No punctuation, quotes, explanation, commas, or multiple clauses.";
+
   const prompt = [
     getNamingLanguageInstruction(parts, fallbackLocale, language),
-    "Think privately, then output only one concise session-name label (5-15 characters or words).",
+    labelRule,
     "The label must describe the current coding task, not repeat a conversational sentence.",
-    "No punctuation, quotes, explanation, commas, or multiple clauses.",
+    separatorRule,
     safeCurrentName
       ? `Current session name: <current-name>${safeCurrentName.text}</current-name>. Keep it exactly when it still fits the task and language requirement; otherwise choose a concise label that does.`
       : "There is no current session name.",
@@ -189,7 +204,7 @@ function buildNamingPrompt(parts: DialoguePart[], currentName: string | undefine
   return prompt.join("\n\n");
 }
 
-function extractCleanName(response: any): string | undefined {
+function extractCleanName(response: any, config: AutonameConfig): string | undefined {
   const text = response.content
     ?.filter((block: any) => block.type === "text")
     .map((block: any) => block.text)
@@ -208,7 +223,11 @@ function extractCleanName(response: any): string | undefined {
     ?.replace(/^['"`\u201c\u201d\u3001]+|['"`\u201c\u201d\u3001]+$/g, "")
     .replace(/[^\p{L}\p{N}\s\-_/.#+]/gu, "")
     .trim();
-  const name = cleaned && limitNameLength(cleaned);
+  const name = cleaned
+    ? config.kebabCase
+      ? limitKebabName(toKebabCase(cleaned, config.maxWords))
+      : limitNameLength(cleaned)
+    : undefined;
   return name && isHighQualityName(name) ? name : undefined;
 }
 
@@ -250,12 +269,13 @@ function extractDialogue(ctx: ExtensionContext, mode: NamingMode, config: Autona
   return mode === "initial" ? getInitialDialogue(branch, options) : getRecentDialogue(branch, 6, options);
 }
 
-function fallbackName(parts: DialoguePart[]): NamingResult | undefined {
+function fallbackName(parts: DialoguePart[], config: AutonameConfig): NamingResult | undefined {
   for (let index = parts.length - 1; index >= 0; index -= 1) {
     if (parts[index].role !== "user") continue;
     const redacted = redactSensitiveText(parts[index].text);
     if (redacted.redacted) continue;
-    const name = smartFallbackName(redacted.text);
+    const raw = smartFallbackName(redacted.text);
+    const name = config.kebabCase ? limitKebabName(toKebabCase(raw, config.maxWords)) : raw;
     if (isHighQualityName(name)) return { name, source: "fallback" };
   }
   return undefined;
@@ -272,7 +292,7 @@ async function generateName(
   const parts = extractDialogue(ctx, mode, config);
   if (parts.length === 0) return undefined;
 
-  const prompt = buildNamingPrompt(parts, currentName, fallbackLocale, config.language);
+  const prompt = buildNamingPrompt(parts, currentName, fallbackLocale, config.language, config);
   const startedAt = Date.now();
 
   for (const { model, thinking } of buildModelChain(config, ctx)) {
@@ -281,7 +301,7 @@ async function generateName(
 
     try {
       const response = await completeWithinBudget(model, prompt, ctx, signal, remainingBudget, thinking);
-      const name = response && extractCleanName(response);
+      const name = response && extractCleanName(response, config);
       if (name) return { name, source: "ai" };
     } catch {
       if (signal.aborted) return undefined;
@@ -289,7 +309,7 @@ async function generateName(
     }
   }
 
-  return fallbackName(parts);
+  return fallbackName(parts, config);
 }
 
 export default function extension(pi: ExtensionAPI): void {

@@ -5,6 +5,7 @@ import {
   DEFAULT_CONFIG,
   MAX_COOLDOWN_MINUTES,
   MAX_NAME_LENGTH,
+  MAX_NAME_WORDS,
   MIN_COOLDOWN_MINUTES,
   blockText,
   detectDominantUserLanguage,
@@ -14,11 +15,13 @@ import {
   getNamingLanguageInstruction,
   getRecentDialogue,
   isHighQualityName,
+  limitKebabName,
   normalizeConfig,
   parseModelRef,
   parseRenameMarker,
   redactSensitiveText,
   smartFallbackName,
+  toKebabCase,
 } from "../extensions/lib.ts";
 
 describe("configuration and privacy", () => {
@@ -123,6 +126,41 @@ describe("name quality and fallback", () => {
     assert.ok(smartFallbackName("A".repeat(200)).length <= MAX_NAME_LENGTH);
     assert.ok(smartFallbackName("长".repeat(100)).length <= MAX_NAME_LENGTH);
     assert.ok(isHighQualityName(smartFallbackName("Refactor database connection retry behavior and improve timeout handling")));
+  });
+});
+
+describe("kebab-case names", () => {
+  it("joins words with single hyphens and drops other punctuation", () => {
+    assert.equal(toKebabCase("Refactor database connection"), "refactor-database-connection");
+    assert.equal(toKebabCase("Fix auth/session bug!"), "fix-auth-session-bug");
+    assert.equal(toKebabCase("  Trim   spaces  "), "trim-spaces");
+    assert.equal(toKebabCase("snake_case_name"), "snake-case-name");
+  });
+
+  it("caps the word count and keeps CJK labels whole", () => {
+    assert.equal(toKebabCase("one two three four five six seven"), "one-two-three-four-five");
+    assert.equal(toKebabCase("one two three four", 2), "one-two");
+    assert.equal(toKebabCase("one two", 0), "one");
+    assert.equal(toKebabCase("one two", MAX_NAME_WORDS + 5), "one-two");
+    assert.equal(toKebabCase("重构缓存层"), "重构缓存层");
+  });
+
+  it("cuts a long name at a hyphen boundary", () => {
+    const long = "alpha-beta-gamma-delta-epsilon-zeta-eta-theta";
+    const cut = limitKebabName(long);
+    assert.ok(cut.length <= MAX_NAME_LENGTH);
+    assert.equal(cut.endsWith("-"), false);
+    assert.equal(long.startsWith(cut), true);
+  });
+
+  it("clamps maxWords and defaults kebabCase to on", () => {
+    assert.equal(DEFAULT_CONFIG.kebabCase, true);
+    assert.equal(normalizeConfig({ maxWords: 0 }).maxWords, 1);
+    assert.equal(normalizeConfig({ maxWords: 99 }).maxWords, MAX_NAME_WORDS);
+    assert.equal(normalizeConfig({ maxWords: 2.6 }).maxWords, 3);
+    assert.equal(normalizeConfig({ maxWords: Number.NaN }).maxWords, DEFAULT_CONFIG.maxWords);
+    assert.equal(normalizeConfig({ kebabCase: false }).kebabCase, false);
+    assert.equal(normalizeConfig({ kebabCase: "no" }).kebabCase, true);
   });
 });
 
