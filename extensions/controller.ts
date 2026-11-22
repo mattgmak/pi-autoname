@@ -120,6 +120,18 @@ export function createNamingController(runtime: NamingControllerRuntime): Naming
         return;
       }
 
+      // A name set out-of-band (e.g. `pi --name` by an orchestrator) has no
+      // marker. With respectManualName on, treat any existing name as
+      // user-owned so it survives reloads instead of being renamed on the
+      // first dialogue.
+      if (existing && runtime.getConfig().respectManualName) {
+        manualName = existing;
+        lastGeneratedName = existing;
+        lastRenameTime = runtime.now();
+        state = "named";
+        return;
+      }
+
       state = "unnamed";
       lastRenameTime = runtime.now();
     },

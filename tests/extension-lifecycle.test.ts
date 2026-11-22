@@ -91,6 +91,35 @@ describe("naming lifecycle", () => {
     assert.deepEqual(test.markers.at(-1), { event: "user_rename", name: "手工标题", timestamp: 1_000 });
   });
 
+  it("treats an unmarked existing name as manual when respectManualName is enabled", async () => {
+    const test = createRuntime({
+      config: { respectManualName: true, cooldownMinutes: 1 },
+      name: "NixConfig-bump-pi-bolt-1.3.0",
+      generated: { name: "we-need-answer-need-parse", source: "ai" },
+    });
+    test.controller.restore(undefined, "NixConfig-bump-pi-bolt-1.3.0");
+    test.advance(11 * 60_000);
+
+    await test.controller.handleSettled();
+
+    assert.equal(test.name, "NixConfig-bump-pi-bolt-1.3.0");
+    assert.equal(test.requests.length, 0);
+  });
+
+  it("still renames an unmarked existing name when respectManualName is off", async () => {
+    const test = createRuntime({
+      config: { respectManualName: false, cooldownMinutes: 1 },
+      name: "NixConfig-bump-pi-bolt-1.3.0",
+      generated: { name: "we-need-answer-need-parse", source: "ai" },
+    });
+    test.controller.restore(undefined, "NixConfig-bump-pi-bolt-1.3.0");
+
+    await test.controller.handleSettled();
+
+    assert.equal(test.name, "we-need-answer-need-parse");
+    assert.deepEqual(test.requests.map((request) => request.mode), ["initial"]);
+  });
+
   it("uses a manual command even when manual names are sticky", async () => {
     const test = createRuntime({
       config: { respectManualName: true },
