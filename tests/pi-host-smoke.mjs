@@ -108,7 +108,7 @@ try {
   assert.equal(session.getSessionName(), "命名配置验证");
   assert.equal(requests.at(-1).options.reasoning, "low");
   assert.equal(requests.at(-1).selected.id, model.id);
-  assert.match(requests.at(-1).context.messages[0].content[0].text, /zh-CN/);
+  assert.match(requests.at(-1).context.systemPrompt, /zh-CN/);
   faux.setResponses([fauxAssistantMessage([{ type: "thinking", thinking: "Consider a concise title.\nRuntime naming verification" }])]);
   await runner.getCommand("autoname").handler("", runner.createCommandContext());
   assert.equal(session.getSessionName(), "Runtime naming verification");
