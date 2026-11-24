@@ -275,6 +275,14 @@ export function isHighQualityName(name: string): boolean {
   return /[\p{L}\p{N}]/u.test(name);
 }
 
+/** A label whose every word already appears in the prompt copies the prompt instead of the dialogue. */
+export function isPromptEchoName(name: string, prompt: string): boolean {
+  const words = name.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (words.length <= MIN_NAME_WORDS) return false;
+  const promptWords = new Set(prompt.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean));
+  return words.every((word) => promptWords.has(word));
+}
+
 export function blockText(content: any): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";

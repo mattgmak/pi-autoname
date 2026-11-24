@@ -114,6 +114,16 @@ describe("extension naming integration", () => {
     }
   });
 
+  it("rejects a reply that echoes the naming rule and falls back to the user text", async t => {
+    const test = await setup(t, {
+      user: "Fix the database connection",
+      complete: async () => ({ content: [{ type: "text", text: "Separate the words with single hyphens." }] }),
+    });
+    await test.manual();
+    assert.equal(test.name, "fix-the-database-connection");
+    assert.equal(test.markers[0].source, "fallback");
+  });
+
   it("keeps long clean local fallbacks inside the shared quality limit", async t => {
     const test = await setup(t, {
       user: "Refactor database connection retry behavior and improve timeout handling",
@@ -155,12 +165,12 @@ describe("extension naming integration", () => {
   it("lets explicit naming language override English user text and keeps auto as default", async t => {
     const test = await setup(t, { user: "Refactor database connections", config: { language: "zh-CN" } });
     await test.manual();
-    const prompt = test.calls[0].context.messages[0].content[0].text;
+    const prompt = test.calls[0].context.systemPrompt;
     assert.match(prompt, /zh-CN/);
     assert.match(prompt, /explicit/i);
     const automatic = await setup(t, { user: "Refactor database connections" });
     await automatic.manual();
-    assert.match(automatic.calls[0].context.messages[0].content[0].text, /English/);
+    assert.match(automatic.calls[0].context.systemPrompt, /English/);
   });
 
   it("keeps debug diagnostics useful without logging names, paths, content or provider errors", async t => {

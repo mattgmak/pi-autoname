@@ -15,6 +15,7 @@ import {
   getNamingLanguageInstruction,
   getRecentDialogue,
   isHighQualityName,
+  isPromptEchoName,
   limitKebabName,
   normalizeConfig,
   parseModelRef,
@@ -161,6 +162,27 @@ describe("kebab-case names", () => {
     assert.equal(normalizeConfig({ maxWords: Number.NaN }).maxWords, DEFAULT_CONFIG.maxWords);
     assert.equal(normalizeConfig({ kebabCase: false }).kebabCase, false);
     assert.equal(normalizeConfig({ kebabCase: "no" }).kebabCase, true);
+  });
+});
+
+describe("prompt echo names", () => {
+  const system = [
+    "You produce concise semantic labels for coding sessions.",
+    "Think privately, then output only one session-name label of at most 5 words in lower-case kebab-case.",
+    "The label must describe the current coding task, not repeat a conversational sentence.",
+    "Separate the words with single hyphens. Use no other punctuation, quotes, explanation, commas, or multiple clauses.",
+  ].join("\n\n");
+
+  it("rejects a label copied from the prompt", () => {
+    assert.equal(isPromptEchoName("separate-words-with-single", system), true);
+    assert.equal(isPromptEchoName("label-must-describe-current", system), true);
+    assert.equal(isPromptEchoName("output-only-one-label", system), true);
+  });
+
+  it("keeps task names and single-word labels", () => {
+    assert.equal(isPromptEchoName("nix-serve-narinfo-fix", system), false);
+    assert.equal(isPromptEchoName("session", system), false);
+    assert.equal(isPromptEchoName("重构缓存层", system), false);
   });
 });
 
