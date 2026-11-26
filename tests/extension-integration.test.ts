@@ -21,13 +21,17 @@ async function setup(t: any, options: {
   mkdirSync(configDir, { recursive: true });
   writeFileSync(join(configDir, "pi-autoname.json"), options.rawConfig ?? JSON.stringify({ ...DEFAULT_CONFIG, ...options.config }));
   const previousHome = process.env.HOME;
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
   process.env.HOME = home;
+  process.env.PI_CODING_AGENT_DIR = configDir;
   let extension: any;
   try {
     extension = (await import(`../extensions/index.ts?test=${++instance}`)).default;
   } finally {
     if (previousHome === undefined) delete process.env.HOME;
     else process.env.HOME = previousHome;
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
   }
   const handlers = new Map<string, any>();
   const commands = new Map<string, any>();
@@ -283,7 +287,7 @@ describe("extension naming integration", () => {
     await test.settled();
     assert.equal(test.name, "数据库连接修复");
     assert.equal(test.calls.length, 1);
-    assert.equal(test.calls[0].options.maxTokens, 64);
+    assert.equal(test.calls[0].options.maxTokens, 256);
     assert.ok(test.calls[0].options.signal instanceof AbortSignal);
     assert.equal(test.markers[0].source, "ai");
     await test.reload();

@@ -10,7 +10,9 @@ const host = resolve(process.env.PI_HOST_ROOT);
 const root = fileURLToPath(new URL("../", import.meta.url));
 const home = mkdtempSync(join(tmpdir(), "pi-autoname-host-"));
 const oldHome = process.env.HOME;
+const oldAgentDir = process.env.PI_CODING_AGENT_DIR;
 process.env.HOME = home;
+process.env.PI_CODING_AGENT_DIR = join(home, ".pi", "agent");
 process.env.JITI_FS_CACHE = "false";
 const load = path => import(pathToFileURL(join(host, path)).href);
 let runner;
@@ -140,5 +142,7 @@ try {
   await runner?.emit({ type: "session_shutdown" });
   if (oldHome === undefined) delete process.env.HOME;
   else process.env.HOME = oldHome;
+  if (oldAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+  else process.env.PI_CODING_AGENT_DIR = oldAgentDir;
   rmSync(home, { recursive: true, force: true });
 }

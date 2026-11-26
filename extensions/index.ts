@@ -16,6 +16,7 @@ import {
   getNamingLanguageInstruction,
   getRecentDialogue,
   isHighQualityName,
+  isProseCandidate,
   isPromptEchoName,
   limitKebabName,
   limitNameLength,
@@ -36,11 +37,14 @@ import {
 } from "./controller.ts";
 import type { NamingThinkingLevel } from "./lib.ts";
 
-const CONFIG_PATH = join(homedir(), ".pi", "agent", "pi-autoname.json");
+const CONFIG_PATH = join(
+  process.env.PI_CODING_AGENT_DIR || join(homedir(), ".pi", "agent"),
+  "pi-autoname.json",
+);
 const STATE_ENTRY_TYPE = "pi-autoname-state";
 const AI_TOTAL_BUDGET_MS = 30_000;
 const AI_ATTEMPT_TIMEOUT_MS = 12_000;
-const MAX_NAME_TOKENS = 64;
+const MAX_NAME_TOKENS = 256;
 
 let debugEnabled = false;
 let configCache: AutonameConfig | undefined;
@@ -222,21 +226,25 @@ function extractCleanName(response: any, config: AutonameConfig, systemPrompt: s
     .map((block: any) => block.thinking)
     .join("")
     .trim();
-  // Text providers put the label first; reasoning-only providers may finish with it.
-  const candidate = text
-    ? text.split(/\r?\n/).map((line: string) => line.trim()).find(Boolean)
-    : fallbackThinking?.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean).at(-1);
-  const cleaned = candidate
-    ?.replace(/^['"`\u201c\u201d\u3001]+|['"`\u201c\u201d\u3001]+$/g, "")
-    .replace(/[^\p{L}\p{N}\s\-_/.#+]/gu, "")
-    .trim();
-  const name = cleaned
-    ? config.kebabCase
+  // Text providers put the label first; reasoning-only providers may finish with it. Try each
+  // line, because a prose first line must not hide a valid label further down.
+  const lines = text
+    ? text.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean)
+    : fallbackThinking?.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean).reverse() ?? [];
+  for (const line of lines) {
+    // Check prose before cleaning: cleaning erases the punctuation that proves it.
+    if (isProseCandidate(line, config)) continue;
+    const cleaned = line
+      .replace(/^['"`\u201c\u201d\u3001]+|['"`\u201c\u201d\u3001]+$/g, "")
+      .replace(/[^\p{L}\p{N}\s\-_/.#+]/gu, "")
+      .trim();
+    const name = config.kebabCase
       ? limitKebabName(toKebabCase(cleaned, config.maxWords))
-      : limitNameLength(cleaned)
-    : undefined;
-  if (!name || !isHighQualityName(name) || isPromptEchoName(name, systemPrompt)) return undefined;
-  return name;
+      : limitNameLength(cleaned);
+    if (!name || !isHighQualityName(name) || isPromptEchoName(name, systemPrompt)) continue;
+    return name;
+  }
+  return undefined;
 }
 
 async function completeWithinBudget(

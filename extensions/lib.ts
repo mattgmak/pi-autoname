@@ -275,6 +275,21 @@ export function isHighQualityName(name: string): boolean {
   return /[\p{L}\p{N}]/u.test(name);
 }
 
+/**
+ * Rejects a model answer that quotes a sentence instead of a label. Run it on
+ * the raw answer: kebab-case strips the punctuation and word count that prove it.
+ * A period stays out of the punctuation class so `v1.2-bug` survives.
+ */
+export function isProseCandidate(text: string, config: AutonameConfig): boolean {
+  const candidate = text.trim();
+  if (!candidate) return true;
+  if (/[,，;；:：!！?？]/.test(candidate)) return true;
+  if (SENTENCE_END_RE.test(candidate)) return true;
+  const words = candidate.split(/\s+/).filter(Boolean).length;
+  const limit = Math.min(MAX_NAME_WORDS, Math.max(MIN_NAME_WORDS, config.maxWords));
+  return config.kebabCase && words > limit;
+}
+
 /** A label whose every word already appears in the prompt copies the prompt instead of the dialogue. */
 export function isPromptEchoName(name: string, prompt: string): boolean {
   const words = name.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);

@@ -15,6 +15,7 @@ import {
   getNamingLanguageInstruction,
   getRecentDialogue,
   isHighQualityName,
+  isProseCandidate,
   isPromptEchoName,
   limitKebabName,
   normalizeConfig,
@@ -118,6 +119,15 @@ describe("name quality and fallback", () => {
     assert.equal(isHighQualityName("ab"), false);
     assert.equal(isHighQualityName("a".repeat(MAX_NAME_LENGTH + 1)), false);
     assert.equal(isHighQualityName("你好，世界！不错"), false);
+  });
+
+  it("rejects a reasoning preamble before kebab-case hides the proof", () => {
+    assert.equal(isProseCandidate("We need to answer. We need to parse this.", DEFAULT_CONFIG), true);
+    assert.equal(isProseCandidate("The label must describe the current coding task, not repeat.", DEFAULT_CONFIG), true);
+    assert.equal(isProseCandidate("Think privately, then output only one label.", DEFAULT_CONFIG), true);
+    assert.equal(isProseCandidate("Assistant gave CSS userstyle. User asked.", DEFAULT_CONFIG), true);
+    assert.equal(isProseCandidate("fix-pi-local-autonaming", DEFAULT_CONFIG), false);
+    assert.equal(isProseCandidate("v1.2-bug", DEFAULT_CONFIG), false);
   });
 
   it("turns user requests into short fallback labels", () => {

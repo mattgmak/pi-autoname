@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Skip autoname when `PI_SUBAGENT_NAME` holds a value. A spawned subagent keeps the name that its parent gives.
 - Reject a label that copies a rule from the naming prompt. Weak models echoed the kebab-case rule as the session name. The rules now stay in the system prompt, and the check rejects a copied line.
+- Reject a reasoning preamble used as a name. A thinking model returned prose, and kebab-case deleted the proof. The check now runs on the raw answer and scans every line.
+- Raise the naming token budget from 64 to 256, so reasoning output cannot crowd out the label.
+- Read the config from `PI_CODING_AGENT_DIR`, so a second agent directory uses its own settings.
 - Treat not-yet-created session files as normal, while retaining safe diagnostics for other IO errors. Adapted from @LoveSnowEx’s PR #3.
 - Extract a concise line from multiline model replies and keep AI/local fallback names within the same quality limit. Adapted from @git-geeky’s PR #2.
 

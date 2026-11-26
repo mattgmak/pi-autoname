@@ -34,7 +34,7 @@ pi install npm:pi-autoname
 
 ## ⚙️ Configuration
 
-Config file is **auto-generated** on first use at `~/.pi/agent/pi-autoname.json`:
+Config file is **auto-generated** on first use at `$PI_CODING_AGENT_DIR/pi-autoname.json`, or `~/.pi/agent/pi-autoname.json` when the variable is unset:
 
 ```json
 {
